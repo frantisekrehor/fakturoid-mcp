@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { PaginationSchema } from "./common.js";
 
 const TodoSchema = z.object({
 	/** Date and time of todo completion */
@@ -31,5 +32,15 @@ const TodoSchema = z.object({
 
 type Todo = z.infer<typeof TodoSchema>;
 
-export { TodoSchema };
-export type { Todo };
+const GetTodosFiltersSchema = z
+	.object({
+		/** Only todos created after this date and time (ISO 8601) */
+		since: z.string(),
+	})
+	.partial()
+	.merge(PaginationSchema);
+
+type GetTodosFilters = z.infer<typeof GetTodosFiltersSchema>;
+
+export { TodoSchema, GetTodosFiltersSchema };
+export type { Todo, GetTodosFilters };

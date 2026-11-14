@@ -1,4 +1,5 @@
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
+import type { Pagination } from "../model/common.js";
 import type { CreateInboxFile, InboxFile } from "../model/inboxFile.js";
 import { request, requestAllPages } from "./request.js";
 
@@ -12,10 +13,14 @@ import { request, requestAllPages } from "./request.js";
  *
  * @returns List of all inbox files.
  */
-const getInboxFiles = async (strategy: AuthenticationStrategy, accountSlug: string): Promise<InboxFile[] | Error> => {
+const getInboxFiles = async (
+	strategy: AuthenticationStrategy,
+	accountSlug: string,
+	pagination?: Pagination,
+): Promise<InboxFile[] | Error> => {
 	const path = `/accounts/${accountSlug}/inbox_files.json`;
 
-	return await requestAllPages(strategy, path);
+	return await requestAllPages(strategy, path, {}, pagination?.page_count, pagination?.page);
 };
 
 /**

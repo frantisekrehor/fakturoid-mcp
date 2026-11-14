@@ -176,9 +176,13 @@ const resolveAttachments = async (
 				staging,
 			);
 
+			// For inline data without a filename, omit it so Fakturoid names the file
+			// `attachment.<ext>` from the Data URI MIME type.
+			const filename = att.filename ?? (att.data_url == null ? file.filename : undefined);
+
 			return {
 				data_url: bufferToDataUri(file.content, file.mimeType),
-				filename: att.filename ?? file.filename,
+				...(filename != null && { filename: filename }),
 			};
 		}),
 	);

@@ -1,19 +1,17 @@
 import { z } from "zod/v3";
-import { CreateAttachmentToolSchema } from "../model/common.js";
+import { CreateAttachmentToolSchema, PaginationSchema } from "../model/common.js";
 import { CreateInvoiceSchema, GetInvoicesFiltersSchema, UpdateInvoiceSchema } from "../model/invoice.js";
 import { resolveAttachments } from "../../staging/resolver.js";
-import { createTool, type ServerToolCreator } from "./common.js";
+import { createTool, listResult, type ServerToolCreator } from "./common.js";
 
 const getInvoices = createTool(
 	"fakturoid_get_invoices",
 	"Get Invoices",
-	"Retrieve a list of invoices with optional filtering by status, date range, customer, and other criteria",
+	"Retrieve a list of invoices with optional filtering by status, date range, customer, and other criteria. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
 	async (client, { filters }) => {
 		const invoices = await client.getInvoices(filters);
 
-		return {
-			content: [{ text: JSON.stringify(invoices, null, 2), type: "text" }],
-		};
+		return listResult(invoices, filters?.page_count, filters?.page);
 	},
 	{
 		filters: GetInvoicesFiltersSchema.optional(),
@@ -23,17 +21,16 @@ const getInvoices = createTool(
 const searchInvoices = createTool(
 	"fakturoid_search_invoices",
 	"Search Invoices",
-	"Search invoices by text query and optionally filter by tags",
-	async (client, { query, tags }) => {
-		const invoices = await client.searchInvoices(query, tags);
+	"Search invoices by text query and optionally filter by tags. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
+	async (client, { query, tags, page, page_count }) => {
+		const invoices = await client.searchInvoices(query, tags, { page: page, page_count: page_count });
 
-		return {
-			content: [{ text: JSON.stringify(invoices, null, 2), type: "text" }],
-		};
+		return listResult(invoices, page_count, page);
 	},
 	{
 		query: z.string().optional(),
 		tags: z.array(z.string()).optional(),
+		...PaginationSchema.shape,
 	},
 );
 

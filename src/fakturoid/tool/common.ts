@@ -60,5 +60,27 @@ const createTool = <
 	};
 };
 
-export { createTool };
+const PAGE_SIZE = 40;
+
+/**
+ * Format a list result for a tool response.
+ *
+ * When `page_count` limited the fetch and the last page was full, more items
+ * may exist; say so explicitly so the caller never mistakes it for a full list.
+ */
+const listResult = (items: unknown, pageCount?: number, page?: number): CallToolResult => {
+	const content: CallToolResult["content"] = [{ text: JSON.stringify(items, null, 2), type: "text" }];
+
+	if (Array.isArray(items) && pageCount != null && items.length >= pageCount * PAGE_SIZE) {
+		const nextPage = (page ?? 1) + pageCount;
+		content.push({
+			text: `Note: result limited to ${pageCount} page(s) of ${PAGE_SIZE} items. More items may exist; request page ${nextPage} to continue.`,
+			type: "text",
+		});
+	}
+
+	return { content: content };
+};
+
+export { createTool, listResult };
 export type { ServerToolCreator };

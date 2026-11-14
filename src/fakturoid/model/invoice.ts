@@ -1,5 +1,5 @@
 import { z } from "zod/v3";
-import { CreateAttachmentSchema, VatRatesSummarySchema } from "./common.js";
+import { CreateAttachmentSchema, PaginationSchema, VatRatesSummarySchema } from "./common.js";
 
 const INVOICE_DOCUMENT_TYPE = [
 	"partial_proforma",
@@ -507,7 +507,7 @@ const GetInvoicesFiltersSchema = InvoiceSchema.pick({
 	subject_id: true,
 })
 	.extend({
-		page_count: z.number().positive(),
+		...PaginationSchema.shape,
 		since: z.string(),
 		until: z.string(),
 		updated_since: z.string(),

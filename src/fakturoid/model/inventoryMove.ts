@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { DateStringSchema } from "./common.js";
 
 /**
  * Document details about the document and line the move is tied to
@@ -51,6 +52,8 @@ const CreateInventoryMoveSchema = InventoryMoveSchema.pick({
 	purchase_price: true,
 	quantity_change: true,
 }).extend({
+	/** Move date (YYYY-MM-DD) */
+	moved_on: DateStringSchema,
 	native_purchase_price: InventoryMoveSchema.shape.native_purchase_price.optional(),
 	native_retail_price: InventoryMoveSchema.shape.native_retail_price.optional(),
 	private_note: InventoryMoveSchema.shape.private_note.optional(),
@@ -69,7 +72,12 @@ const UpdateInventoryMoveSchema = InventoryMoveSchema.pick({
 	quantity_change: true,
 	retail_currency: true,
 	retail_price: true,
-}).partial();
+})
+	.extend({
+		/** Move date (YYYY-MM-DD) */
+		moved_on: DateStringSchema,
+	})
+	.partial();
 
 type InventoryMove = z.infer<typeof InventoryMoveSchema>;
 type CreateInventoryMove = z.infer<typeof CreateInventoryMoveSchema>;

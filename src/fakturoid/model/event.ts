@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { PaginationSchema } from "./common.js";
 
 /**
  * User details
@@ -42,5 +43,17 @@ const EventSchema = z.object({
 
 type Event = z.infer<typeof EventSchema>;
 
-export { EventSchema };
-export type { Event };
+const GetEventsFiltersSchema = z
+	.object({
+		/** Only events created after this date and time (ISO 8601) */
+		since: z.string(),
+		/** Only events related to this subject */
+		subject_id: z.number().int(),
+	})
+	.partial()
+	.merge(PaginationSchema);
+
+type GetEventsFilters = z.infer<typeof GetEventsFiltersSchema>;
+
+export { EventSchema, GetEventsFiltersSchema };
+export type { Event, GetEventsFilters };

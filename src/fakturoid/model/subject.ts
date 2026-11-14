@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { PaginationSchema } from "./common.js";
 
 const SUBJECT_SETTING = ["inherit", "on", "off"] as const;
 const SUBJECT_TYPE = ["customer", "supplier", "both"] as const;
@@ -304,7 +305,7 @@ const GetSubjectsFiltersSchema = SubjectSchema.pick({
 	custom_id: true,
 })
 	.extend({
-		page_count: z.number().positive(),
+		...PaginationSchema.shape,
 		since: z.string(),
 		updated_since: z.string(),
 	})

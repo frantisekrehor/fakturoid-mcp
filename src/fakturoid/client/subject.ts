@@ -1,4 +1,5 @@
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
+import type { Pagination } from "../model/common.js";
 import type { GetSubjectsFilters, Subject, SubjectCreate, SubjectUpdate } from "../model/subject.js";
 import { request, requestAllPages } from "./request.js";
 
@@ -28,7 +29,7 @@ const getSubjects = async (
 
 	const path = `/accounts/${accountSlug}/subjects.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, filters?.page_count, filters?.page);
 };
 
 /**
@@ -46,6 +47,7 @@ const searchSubjects = async (
 	strategy: AuthenticationStrategy,
 	accountSlug: string,
 	query?: string,
+	pagination?: Pagination,
 ): Promise<Subject[] | Error> => {
 	const queryParams = Object.fromEntries(
 		[["query", query]].filter((value): value is [string, string] => value[1] != null),
@@ -53,7 +55,7 @@ const searchSubjects = async (
 
 	const path = `/accounts/${accountSlug}/subjects/search.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, pagination?.page_count, pagination?.page);
 };
 
 /**

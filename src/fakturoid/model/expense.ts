@@ -1,5 +1,5 @@
 import { z } from "zod/v3";
-import { CreateAttachmentSchema, VatRatesSummarySchema } from "./common.js";
+import { CreateAttachmentSchema, PaginationSchema, VatRatesSummarySchema } from "./common.js";
 import { ExpensePaymentSchema } from "./expensePayment.js";
 
 const EXPENSE_ARTICLE_NUMBER_TYPE = ["ian", "ean", "isbn"] as const;
@@ -67,8 +67,8 @@ const UpdateLineSchema = LineSchema.pick({
 	unit_price: true,
 	vat_rate: true,
 })
+	// `id` is optional: omit it to add a new line, set it to update or delete an existing one.
 	.partial()
-	.required({ id: true })
 	.extend({
 		/** Delete the line */
 		_destroy: z.boolean().optional(),
@@ -303,7 +303,7 @@ const GetExpenseFiltersSchema = ExpenseSchema.pick({
 	variable_symbol: true,
 })
 	.extend({
-		page_count: z.number().positive(),
+		...PaginationSchema.shape,
 		since: z.string(),
 		updated_since: z.string(),
 	})

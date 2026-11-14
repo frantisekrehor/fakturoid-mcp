@@ -1,17 +1,17 @@
 import { z } from "zod/v3";
-import { createTool, type ServerToolCreator } from "./common.js";
+import { GetTodosFiltersSchema } from "../model/todo.js";
+import { createTool, listResult, type ServerToolCreator } from "./common.js";
 
 const getTodos = createTool(
 	"fakturoid_get_todos",
 	"Get Todos",
-	"Retrieve a list of todos (tasks and reminders) in the account",
-	async (client) => {
-		const todos = await client.getTodos();
+	"Retrieve a list of todos (tasks and reminders) in the account. Use since or page_count (40 items per page) to narrow it.",
+	async (client, filters) => {
+		const todos = await client.getTodos(filters);
 
-		return {
-			content: [{ text: JSON.stringify(todos, null, 2), type: "text" }],
-		};
+		return listResult(todos, filters.page_count, filters.page);
 	},
+	GetTodosFiltersSchema.shape,
 );
 
 const toggleTodoCompletion = createTool(

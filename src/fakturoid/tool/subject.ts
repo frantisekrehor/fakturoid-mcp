@@ -1,17 +1,16 @@
 import { z } from "zod/v3";
+import { PaginationSchema } from "../model/common.js";
 import { GetSubjectsFiltersSchema, SubjectCreateSchema, SubjectUpdateSchema } from "../model/subject.js";
-import { createTool, type ServerToolCreator } from "./common.js";
+import { createTool, listResult, type ServerToolCreator } from "./common.js";
 
 const getSubjects = createTool(
 	"fakturoid_get_subjects",
 	"Get Subjects",
-	"Retrieve a list of subjects (customers and suppliers) with optional filtering",
+	"Retrieve a list of subjects (customers and suppliers) with optional filtering. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
 	async (client, { filters }) => {
 		const subjects = await client.getSubjects(filters);
 
-		return {
-			content: [{ text: JSON.stringify(subjects, null, 2), type: "text" }],
-		};
+		return listResult(subjects, filters?.page_count, filters?.page);
 	},
 	{
 		accountSlug: z.string().min(1),
@@ -22,16 +21,15 @@ const getSubjects = createTool(
 const searchSubjects = createTool(
 	"fakturoid_search_subjects",
 	"Search Subjects",
-	"Search subjects (customers and suppliers) by text query",
-	async (client, { query }) => {
-		const subjects = await client.searchSubjects(query);
+	"Search subjects (customers and suppliers) by text query. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
+	async (client, { query, page, page_count }) => {
+		const subjects = await client.searchSubjects(query, { page: page, page_count: page_count });
 
-		return {
-			content: [{ text: JSON.stringify(subjects, null, 2), type: "text" }],
-		};
+		return listResult(subjects, page_count, page);
 	},
 	{
 		query: z.string().optional(),
+		...PaginationSchema.shape,
 	},
 );
 

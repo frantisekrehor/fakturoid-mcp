@@ -1,4 +1,5 @@
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
+import type { Pagination } from "../model/common.js";
 import type { CreateExpense, Expense, GetExpenseFilters, UpdateExpense } from "../model/expense.js";
 import { request, requestAllPages } from "./request.js";
 
@@ -32,7 +33,7 @@ const getExpenses = async (
 
 	const path = `/accounts/${accountSlug}/expenses.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, filters?.page_count, filters?.page);
 };
 
 /**
@@ -52,6 +53,7 @@ const searchExpenses = async (
 	accountSlug: string,
 	query?: string,
 	tags?: string[],
+	pagination?: Pagination,
 ): Promise<Expense[] | Error> => {
 	const queryParams = Object.fromEntries(
 		[
@@ -62,7 +64,7 @@ const searchExpenses = async (
 
 	const path = `/accounts/${accountSlug}/expenses/search.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, pagination?.page_count, pagination?.page);
 };
 
 /**

@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { DateStringSchema } from "./common.js";
 
 const ExpensePaymentSchema = z.object({
 	/** Paid amount in document currency */
@@ -38,7 +39,12 @@ const CreateExpensePaymentSchema = ExpensePaymentSchema.pick({
 	native_amount: true,
 	paid_on: true,
 	variable_symbol: true,
-}).partial();
+})
+	.extend({
+		/** Payment date (YYYY-MM-DD). Default: today */
+		paid_on: DateStringSchema,
+	})
+	.partial();
 
 type ExpensePayment = z.infer<typeof ExpensePaymentSchema>;
 type CreateExpensePayment = z.infer<typeof CreateExpensePaymentSchema>;

@@ -1,19 +1,19 @@
 import { z } from "zod/v3";
 import { CreateInboxFileToolSchema } from "../model/inboxFile.js";
 import { resolveFileSource, bufferToBase64 } from "../../staging/resolver.js";
-import { createTool, type ServerToolCreator } from "./common.js";
+import { PaginationSchema } from "../model/common.js";
+import { createTool, listResult, type ServerToolCreator } from "./common.js";
 
 const getInboxFiles = createTool(
 	"fakturoid_get_inbox_files",
 	"Get Inbox Files",
-	"Retrieve a list of files uploaded to the inbox for processing",
-	async (client) => {
-		const inboxFiles = await client.getInboxFiles();
+	"Retrieve a list of files uploaded to the inbox for processing. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
+	async (client, pagination) => {
+		const inboxFiles = await client.getInboxFiles(pagination);
 
-		return {
-			content: [{ text: JSON.stringify(inboxFiles, null, 2), type: "text" }],
-		};
+		return listResult(inboxFiles, pagination.page_count, pagination.page);
 	},
+	PaginationSchema.shape,
 );
 
 const createInboxFile = createTool(

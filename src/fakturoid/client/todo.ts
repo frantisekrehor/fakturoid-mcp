@@ -1,5 +1,5 @@
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
-import type { Todo } from "../model/todo.js";
+import type { GetTodosFilters, Todo } from "../model/todo.js";
 import { request, requestAllPages } from "./request.js";
 
 /**
@@ -12,10 +12,17 @@ import { request, requestAllPages } from "./request.js";
  *
  * @returns List of all todos.
  */
-const getTodos = async (strategy: AuthenticationStrategy, accountSlug: string): Promise<Todo[] | Error> => {
+const getTodos = async (
+	strategy: AuthenticationStrategy,
+	accountSlug: string,
+	filters?: GetTodosFilters,
+): Promise<Todo[] | Error> => {
 	const path = `/accounts/${accountSlug}/todos.json`;
+	const queryParams = Object.fromEntries(
+		[["since", filters?.since]].filter((value): value is [string, string] => value[1] != null),
+	);
 
-	return await requestAllPages(strategy, path);
+	return await requestAllPages(strategy, path, queryParams, filters?.page_count, filters?.page);
 };
 
 /**

@@ -6,7 +6,7 @@ const InvalidDataErrorSchema = z.object({
 
 const GeneralErrorSchema = z.object({
 	error: z.string(),
-	error_description: z.string(),
+	error_description: z.string().optional(),
 });
 
 const APIErrorSchema = z.union([InvalidDataErrorSchema, GeneralErrorSchema]);

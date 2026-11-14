@@ -1,4 +1,6 @@
 import type { AuthenticationStrategy } from "../auth/strategy.js";
+import type { Pagination } from "./model/common.js";
+import type { GetEventsFilters } from "./model/event.js";
 import type { CreateExpense, GetExpenseFilters, UpdateExpense } from "./model/expense.js";
 import type { CreateExpensePayment } from "./model/expensePayment.js";
 import type { CreateGenerator, UpdateGenerator } from "./model/generator.js";
@@ -10,6 +12,7 @@ import type { InvoiceMessage } from "./model/invoiceMessage.js";
 import type { CreateInvoicePayment } from "./model/invoicePayment.js";
 import type { CreateRecurringGenerator, UpdateRecurringGenerator } from "./model/recurringGenerator.js";
 import type { GetSubjectsFilters, SubjectCreate, SubjectUpdate } from "./model/subject.js";
+import type { GetTodosFilters } from "./model/todo.js";
 import type { User } from "./model/user.js";
 import type { CreateWebhook, UpdateWebhook } from "./model/webhook.js";
 import { getAccountDetail } from "./client/account.js";
@@ -130,11 +133,12 @@ export class FakturoidClient<Configuration extends object, Strategy extends Auth
 	getBankAccounts = () => getBankAccounts(this.strategy, this.accountSlug);
 
 	// Event
-	getEvents = () => getEvents(this.strategy, this.accountSlug);
+	getEvents = (filters?: GetEventsFilters) => getEvents(this.strategy, this.accountSlug, filters);
 
 	// Expense
 	getExpenses = (filters?: GetExpenseFilters) => getExpenses(this.strategy, this.accountSlug, filters);
-	searchExpenses = (query?: string, tags?: string[]) => searchExpenses(this.strategy, this.accountSlug, query, tags);
+	searchExpenses = (query?: string, tags?: string[], pagination?: Pagination) =>
+		searchExpenses(this.strategy, this.accountSlug, query, tags, pagination);
 	getExpenseDetail = (id: number) => getExpenseDetail(this.strategy, this.accountSlug, id);
 	downloadExpenseAttachment = (expenseId: number, attachmentId: number) =>
 		downloadExpenseAttachment(this.strategy, this.accountSlug, expenseId, attachmentId);
@@ -160,7 +164,7 @@ export class FakturoidClient<Configuration extends object, Strategy extends Auth
 	deleteGenerator = (id: number) => deleteGenerator(this.strategy, this.accountSlug, id);
 
 	// Inbox File
-	getInboxFiles = () => getInboxFiles(this.strategy, this.accountSlug);
+	getInboxFiles = (pagination?: Pagination) => getInboxFiles(this.strategy, this.accountSlug, pagination);
 	createInboxFile = (inboxFileData: CreateInboxFile) => createInboxFile(this.strategy, this.accountSlug, inboxFileData);
 	sendInboxFileToOcr = (id: number) => sendInboxFileToOcr(this.strategy, this.accountSlug, id);
 	downloadInboxFile = (id: number) => downloadInboxFile(this.strategy, this.accountSlug, id);
@@ -190,7 +194,8 @@ export class FakturoidClient<Configuration extends object, Strategy extends Auth
 
 	// Invoice
 	getInvoices = (filters?: GetInvoicesFilters) => getInvoices(this.strategy, this.accountSlug, filters);
-	searchInvoices = (query?: string, tags?: string[]) => searchInvoices(this.strategy, this.accountSlug, query, tags);
+	searchInvoices = (query?: string, tags?: string[], pagination?: Pagination) =>
+		searchInvoices(this.strategy, this.accountSlug, query, tags, pagination);
 	getInvoiceDetail = (id: number) => getInvoiceDetail(this.strategy, this.accountSlug, id);
 	downloadInvoicePDF = (id: number) => downloadInvoicePDF(this.strategy, this.accountSlug, id);
 	downloadInvoiceAttachment = (invoiceId: number, attachmentId: number) =>
@@ -237,7 +242,8 @@ export class FakturoidClient<Configuration extends object, Strategy extends Auth
 
 	// Subject
 	getSubjects = (filters?: GetSubjectsFilters) => getSubjects(this.strategy, this.accountSlug, filters);
-	searchSubjects = (query?: string) => searchSubjects(this.strategy, this.accountSlug, query);
+	searchSubjects = (query?: string, pagination?: Pagination) =>
+		searchSubjects(this.strategy, this.accountSlug, query, pagination);
 	getSubjectDetail = (id: number) => getSubjectDetail(this.strategy, this.accountSlug, id);
 	createSubject = (subjectData: SubjectCreate) => createSubject(this.strategy, this.accountSlug, subjectData);
 	updateSubject = (id: number, updateData: SubjectUpdate) =>
@@ -245,7 +251,7 @@ export class FakturoidClient<Configuration extends object, Strategy extends Auth
 	deleteSubject = (id: number) => deleteSubject(this.strategy, this.accountSlug, id);
 
 	// Todo
-	getTodos = () => getTodos(this.strategy, this.accountSlug);
+	getTodos = (filters?: GetTodosFilters) => getTodos(this.strategy, this.accountSlug, filters);
 	toggleTodoCompletion = (id: number) => toggleTodoCompletion(this.strategy, this.accountSlug, id);
 
 	// User

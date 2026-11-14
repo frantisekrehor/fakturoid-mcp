@@ -1,4 +1,5 @@
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
+import type { Pagination } from "../model/common.js";
 import type { CreateInvoice, GetInvoicesFilters, Invoice, UpdateInvoice } from "../model/invoice.js";
 import { request, requestAllPages } from "./request.js";
 
@@ -34,7 +35,7 @@ const getInvoices = async (
 
 	const path = `/accounts/${accountSlug}/invoices.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, filters?.page_count, filters?.page);
 };
 
 /**
@@ -54,6 +55,7 @@ const searchInvoices = async (
 	accountSlug: string,
 	query?: string,
 	tags?: string[],
+	pagination?: Pagination,
 ): Promise<Invoice[] | Error> => {
 	const queryParams = Object.fromEntries(
 		[
@@ -64,7 +66,7 @@ const searchInvoices = async (
 
 	const path = `/accounts/${accountSlug}/invoices/search.json`;
 
-	return await requestAllPages(strategy, path, queryParams);
+	return await requestAllPages(strategy, path, queryParams, pagination?.page_count, pagination?.page);
 };
 
 /**

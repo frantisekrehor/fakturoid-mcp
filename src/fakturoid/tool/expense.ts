@@ -1,19 +1,17 @@
 import { z } from "zod/v3";
-import { CreateAttachmentToolSchema } from "../model/common.js";
+import { CreateAttachmentToolSchema, PaginationSchema } from "../model/common.js";
 import { CreateExpenseSchema, GetExpenseFiltersSchema, UpdateExpenseSchema } from "../model/expense.js";
 import { resolveAttachments } from "../../staging/resolver.js";
-import { createTool, type ServerToolCreator } from "./common.js";
+import { createTool, listResult, type ServerToolCreator } from "./common.js";
 
 const getExpenses = createTool(
 	"fakturoid_get_expenses",
 	"Get Expenses",
-	"Retrieve a list of expenses with optional filtering by status, date range, supplier, and other criteria",
+	"Retrieve a list of expenses with optional filtering by status, date range, supplier, and other criteria. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
 	async (client, { filters }) => {
 		const expenses = await client.getExpenses(filters);
 
-		return {
-			content: [{ text: JSON.stringify(expenses, null, 2), type: "text" }],
-		};
+		return listResult(expenses, filters?.page_count, filters?.page);
 	},
 	{
 		filters: GetExpenseFiltersSchema.optional(),
@@ -23,18 +21,17 @@ const getExpenses = createTool(
 const searchExpenses = createTool(
 	"fakturoid_search_expenses",
 	"Search Expenses",
-	"Search expenses by text query and optionally filter by tags",
-	async (client, { query, tags }) => {
-		const expenses = await client.searchExpenses(query, tags);
+	"Search expenses by text query and optionally filter by tags. Returns all pages by default; use page/page_count (40 items per page) to limit large results.",
+	async (client, { query, tags, page, page_count }) => {
+		const expenses = await client.searchExpenses(query, tags, { page: page, page_count: page_count });
 
-		return {
-			content: [{ text: JSON.stringify(expenses, null, 2), type: "text" }],
-		};
+		return listResult(expenses, page_count, page);
 	},
 	{
 		accountSlug: z.string().min(1),
 		query: z.string().optional(),
 		tags: z.array(z.string()).optional(),
+		...PaginationSchema.shape,
 	},
 );
 
@@ -135,9 +132,15 @@ const createExpense = createTool(
 const updateExpense = createTool(
 	"fakturoid_update_expense",
 	"Update Expense",
-	"Update an existing expense with new data",
-	async (client, { id, updateData }) => {
-		const expense = await client.updateExpense(id, updateData);
+	"Update an existing expense with new data. Lines without id are added, lines with id are updated (or deleted with _destroy). For attachments, provide file_ref (from /upload page - preferred), source_url, file_path, or data_url.",
+	async (client, { id, updateData }, staging) => {
+		const { attachments, ...rest } = updateData;
+		const resolvedAttachments = await resolveAttachments(attachments, staging);
+
+		const expense = await client.updateExpense(id, {
+			...rest,
+			...(resolvedAttachments != null && { attachments: resolvedAttachments }),
+		});
 
 		return {
 			content: [{ text: JSON.stringify(expense, null, 2), type: "text" }],
@@ -145,7 +148,9 @@ const updateExpense = createTool(
 	},
 	{
 		id: z.number(),
-		updateData: UpdateExpenseSchema,
+		updateData: UpdateExpenseSchema.extend({
+			attachments: z.array(CreateAttachmentToolSchema).optional(),
+		}),
 	},
 );
 
