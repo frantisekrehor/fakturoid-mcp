@@ -56,7 +56,7 @@ Based on the current implementation status of the Fakturoid MCP server.
 
   - [ ] Structured error types for different API failures
   - [ ] User-friendly error messages with recovery suggestions
-  - [ ] Rate limiting detection and backoff strategies
+  - [x] Rate limiting detection and backoff strategies
   - [ ] Partial success handling for batch operations
 
 - [ ] **Comprehensive Testing**
