@@ -1,15 +1,22 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer, RegisteredTool } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { z } from "zod/v3";
+import { z } from "zod/v3";
 import type { AuthenticationStrategy } from "../../auth/strategy.js";
 import type { FakturoidClient } from "../client.js";
 import type { FileStaging } from "../../staging/storage.js";
+import { PAGE_SIZE } from "../client/request.js";
 import { logger } from "../../utils/logger.js";
 
 type ServerToolCreator<
 	Configuration extends object = object,
 	Strategy extends AuthenticationStrategy<Configuration> = AuthenticationStrategy<Configuration>,
 > = (server: McpServer, client: FakturoidClient<Configuration, Strategy>, staging: FileStaging) => void;
+
+type LooseRegisterTool = (
+	name: string,
+	config: { title: string; description: string; inputSchema: z.ZodRawShape },
+	callback: (input: unknown) => CallToolResult | Promise<CallToolResult>,
+) => RegisteredTool;
 
 const createTool = <
 	InputSchema extends z.ZodRawShape | undefined = undefined,
@@ -38,15 +45,24 @@ const createTool = <
 				);
 			}
 
-			// Yeah, we don't care for that, Typescript.
-			// @ts-expect-error "Type instantiation is excessively deep and possibly infinite"
-			return server.registerTool(name, { title: title, description: description, inputSchema: inputSchema }, (input) =>
-				implementation(
-					client,
-					input as InputSchema extends z.ZodRawShape ? z.objectOutputType<InputSchema, z.ZodTypeAny> : undefined,
-					staging,
-				),
+			// Loosely typed on purpose: the SDK generics hit "Type instantiation is excessively deep".
+			const registerTool = server.registerTool.bind(server) as unknown as LooseRegisterTool;
+			const registeredTool = registerTool(
+				name,
+				{ title: title, description: description, inputSchema: inputSchema },
+				(input) =>
+					implementation(
+						client,
+						input as InputSchema extends z.ZodRawShape ? z.objectOutputType<InputSchema, z.ZodTypeAny> : undefined,
+						staging,
+					),
 			);
+
+			// Treat a call without `arguments` as `{}` (the SDK would reject it as "Required").
+			const schemaWithDefault = z.object(inputSchema as z.ZodRawShape).default({});
+			registeredTool.inputSchema = schemaWithDefault as unknown as NonNullable<typeof registeredTool.inputSchema>;
+
+			return registeredTool;
 		} catch (error: unknown) {
 			const message = error instanceof Error ? error.message : String(error);
 
@@ -59,8 +75,6 @@ const createTool = <
 		}
 	};
 };
-
-const PAGE_SIZE = 40;
 
 /**
  * Format a list result for a tool response.

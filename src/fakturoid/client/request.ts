@@ -9,8 +9,11 @@ const PAGE_SIZE = 40 as const;
 
 /** Maximum number of retries for rate limited (429) or unavailable (503) responses. */
 const MAX_RETRIES = 3 as const;
-/** Upper bound for a single wait between retries, in milliseconds. */
-const MAX_RETRY_DELAY_MS = 10_000 as const;
+/**
+ * Total time budget for waiting between retries, in milliseconds.
+ * Fakturoid rate limit windows are 60 s, so one full window plus a margin fits.
+ */
+const RETRY_BUDGET_MS = 65_000 as const;
 const MS_PER_SECOND = 1000 as const;
 const BACKOFF_BASE = 2 as const;
 const HTTP_TOO_MANY_REQUESTS = 429 as const;
@@ -62,23 +65,28 @@ const sleep = (milliseconds: number): Promise<void> =>
 	});
 
 /**
- * Determine how long to wait before retrying.
- *
- * Uses `Retry-After` (seconds) or the `t=` part of `X-RateLimit` when present,
- * otherwise falls back to exponential backoff. Always capped.
+ * Seconds until the rate limit resets, from `Retry-After` (seconds) or the `t=`
+ * part of `X-RateLimit`. Undefined when the server does not say.
  */
-const getRetryDelay = (headers: Headers | undefined, attempt: number): number => {
+const getResetSeconds = (headers: Headers | undefined): number | undefined => {
 	const retryAfter = Number(headers?.get("retry-after"));
 	if (Number.isFinite(retryAfter) && retryAfter > 0) {
-		return Math.min(retryAfter * MS_PER_SECOND, MAX_RETRY_DELAY_MS);
+		return retryAfter;
 	}
 
-	const rateLimitReset = RATE_LIMIT_RESET_PATTERN.exec(headers?.get("x-ratelimit") ?? "")?.[1];
-	if (rateLimitReset != null && Number(rateLimitReset) > 0) {
-		return Math.min(Number(rateLimitReset) * MS_PER_SECOND, MAX_RETRY_DELAY_MS);
+	const rateLimitReset = Number(RATE_LIMIT_RESET_PATTERN.exec(headers?.get("x-ratelimit") ?? "")?.[1]);
+	if (Number.isFinite(rateLimitReset) && rateLimitReset > 0) {
+		return rateLimitReset;
 	}
 
-	return Math.min(MS_PER_SECOND * BACKOFF_BASE ** attempt, MAX_RETRY_DELAY_MS);
+	return;
+};
+
+/** Wait until the announced reset, otherwise exponential backoff (1 s, 2 s, 4 s). */
+const getRetryDelay = (headers: Headers | undefined, attempt: number): number => {
+	const resetSeconds = getResetSeconds(headers);
+
+	return resetSeconds != null ? resetSeconds * MS_PER_SECOND : MS_PER_SECOND * BACKOFF_BASE ** attempt;
 };
 
 /**
@@ -89,20 +97,37 @@ const getRetryDelay = (headers: Headers | undefined, attempt: number): number =>
  */
 const fetchWithRetry = async (url: string, requestData: RequestInit, method: string): Promise<Response> => {
 	let response = await fetch(url, requestData);
+	let waited = 0;
 
 	for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
 		const isRetryable =
 			response.status === HTTP_TOO_MANY_REQUESTS || (response.status === HTTP_SERVICE_UNAVAILABLE && method === "GET");
-		if (!isRetryable) {
+		const delay = getRetryDelay(response.headers, attempt);
+
+		// Give up (and report the reset time) rather than block past the budget.
+		if (!isRetryable || waited + delay > RETRY_BUDGET_MS) {
 			break;
 		}
 
+		// Release the discarded response before waiting.
 		// biome-ignore lint/nursery/noAwaitInLoop: Sequential retries are intended
-		await sleep(getRetryDelay(response.headers, attempt));
+		await response.body?.cancel();
+		await sleep(delay);
+		waited += delay;
 		response = await fetch(url, requestData);
 	}
 
 	return response;
+};
+
+/** Add the rate limit reset time to a 429 error so the caller knows when to try again. */
+const withRateLimitHint = <ErrorType extends Error>(error: ErrorType, response: Response): ErrorType => {
+	const resetSeconds = response.status === HTTP_TOO_MANY_REQUESTS ? getResetSeconds(response.headers) : undefined;
+	if (resetSeconds != null) {
+		error.message += ` (rate limit resets in ${Math.ceil(resetSeconds)} s)`;
+	}
+
+	return error;
 };
 
 const parseErrorBody = (text: string): unknown => {
@@ -144,14 +169,14 @@ const request = async <Response, Body = undefined>(
 		const errorText = await responseBody.text();
 		const parsedError = APIErrorSchema.safeParse(parseErrorBody(errorText));
 		if (!parsedError.success) {
-			throw new UnexpectedError(errorText, response.status);
+			throw withRateLimitHint(new UnexpectedError(errorText, response.status), response);
 		}
 
 		if ("errors" in parsedError.data) {
 			throw new InvalidDataError(parsedError.data, response.status);
 		}
 
-		throw new GeneralError(parsedError.data, response.status);
+		throw withRateLimitHint(new GeneralError(parsedError.data, response.status), response);
 	}
 
 	const isJSON = response.headers.get("content-type")?.includes("application/json") ?? false;

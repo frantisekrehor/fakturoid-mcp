@@ -35,7 +35,7 @@ type Todo = z.infer<typeof TodoSchema>;
 const GetTodosFiltersSchema = z
 	.object({
 		/** Only todos created after this date and time (ISO 8601) */
-		since: z.string(),
+		since: z.string().describe("Only items created after this date and time (ISO 8601)"),
 	})
 	.partial()
 	.merge(PaginationSchema);

@@ -28,13 +28,23 @@ const CreateAttachmentSchema = z.object({
 const PaginationSchema = z
 	.object({
 		/** First page to fetch (1-based). Default: 1 */
-		page: z.number().int().positive(),
+		page: z
+			.number()
+			.int()
+			.positive()
+			.describe(
+				"First page to fetch (1-based, 40 items per page). Without page_count, all pages from here to the end are fetched.",
+			),
 		/** Maximum number of pages (40 items each) to fetch. Default: all pages */
-		page_count: z.number().int().positive(),
+		page_count: z
+			.number()
+			.int()
+			.positive()
+			.describe("Maximum number of pages (40 items each) to fetch. Default: all pages."),
 	})
 	.partial();
 
-const DATE_PREFIX_PATTERN = /^(\d{4}-\d{2}-\d{2})/;
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:T[\d:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
 /**
  * Date in the YYYY-MM-DD format.
@@ -42,16 +52,27 @@ const DATE_PREFIX_PATTERN = /^(\d{4}-\d{2}-\d{2})/;
  * Accepts ISO datetimes too and keeps the calendar date as written, without
  * converting to UTC (so `2026-11-14T00:30+01:00` stays `2026-11-14`).
  */
-const DateStringSchema = z.string().transform((value, context) => {
-	const match = DATE_PREFIX_PATTERN.exec(value.trim());
-	if (match?.[1] == null) {
-		context.addIssue({ code: z.ZodIssueCode.custom, message: "Expected a date in the YYYY-MM-DD format" });
+const DateStringSchema = z
+	.string()
+	.describe("Date in the YYYY-MM-DD format, taken as written (no time zone conversion)")
+	.transform((value, context) => {
+		const match = DATE_PATTERN.exec(value.trim());
+		const [, year, month, day] = match ?? [];
+		const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+		const isRealDate =
+			match != null &&
+			date.getUTCFullYear() === Number(year) &&
+			date.getUTCMonth() === Number(month) - 1 &&
+			date.getUTCDate() === Number(day);
 
-		return z.NEVER;
-	}
+		if (!isRealDate) {
+			context.addIssue({ code: z.ZodIssueCode.custom, message: "Expected a valid date in the YYYY-MM-DD format" });
 
-	return match[1];
-});
+			return z.NEVER;
+		}
+
+		return `${year}-${month}-${day}`;
+	});
 
 const CreateAttachmentToolSchema = z.object({
 	/** Reference ID from the /upload page */

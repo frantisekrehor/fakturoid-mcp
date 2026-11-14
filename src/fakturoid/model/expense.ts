@@ -67,15 +67,41 @@ const UpdateLineSchema = LineSchema.pick({
 	unit_price: true,
 	vat_rate: true,
 })
-	// `id` is optional: omit it to add a new line, set it to update or delete an existing one.
 	.partial()
 	.extend({
 		/** Delete the line */
-		_destroy: z.boolean().optional(),
+		_destroy: z.boolean().optional().describe("Delete the line (requires id)"),
 		/** ID of the related inventory item, use this to set an ID during document creation */
 		inventory_item_id: z.number().optional(),
 		/** Stock Keeping Unit (SKU), use this to load data from an inventory item with matching SKU code */
 		sku: z.string().optional(),
+	})
+	.extend({
+		id: z
+			.number()
+			.optional()
+			.describe(
+				"ID of an existing line to update or delete. Omit ONLY to add a new line: a line without id is always appended, so leaving it out by mistake duplicates the line.",
+			),
+	})
+	// Guard against accidental duplicates: Fakturoid appends every line without `id`.
+	.superRefine((line, context) => {
+		if (line._destroy === true && line.id == null) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "_destroy requires the id of an existing line",
+				path: ["id"],
+			});
+		}
+
+		const loadsFromInventory = line.sku != null || line.inventory_item_id != null;
+		if (line.id == null && !loadsFromInventory && (line.name == null || line.unit_price == null)) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: "A new line (without id) requires name and unit_price. To update an existing line, include its id.",
+				path: ["id"],
+			});
+		}
 	});
 
 const AttachmentResponseSchema = z.object({

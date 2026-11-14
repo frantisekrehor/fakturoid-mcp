@@ -46,7 +46,7 @@ type Event = z.infer<typeof EventSchema>;
 const GetEventsFiltersSchema = z
 	.object({
 		/** Only events created after this date and time (ISO 8601) */
-		since: z.string(),
+		since: z.string().describe("Only items created after this date and time (ISO 8601)"),
 		/** Only events related to this subject */
 		subject_id: z.number().int(),
 	})
