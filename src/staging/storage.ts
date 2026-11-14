@@ -29,6 +29,9 @@ class InMemoryFileStaging implements FileStaging {
 
 	constructor() {
 		this.cleanupTimer = setInterval(() => this.cleanup(), CLEANUP_INTERVAL_MS);
+		// Do not keep the process alive just for cleanup; otherwise a STDIO server
+		// never exits after the client closes stdin.
+		this.cleanupTimer.unref();
 	}
 
 	store(file: StagedFile): Promise<string> {
