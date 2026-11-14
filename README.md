@@ -6,7 +6,7 @@ A comprehensive Model Context Protocol (MCP) server implementation for the Faktu
 
 This MCP server provides a complete integration with Fakturoid API v3, demonstrating the full potential of the Model Context Protocol by implementing all three core MCP features:
 
-- **🔧 Tools** - 18+ interactive functions for performing actions on Fakturoid data
+- **🔧 Tools** - 70+ interactive functions for performing actions on Fakturoid data
 - **📚 Resources** - 10 contextual data sources providing real-time business insights
 - **💡 Prompts** - 6 professional workflow templates for common accounting tasks
 
@@ -27,6 +27,23 @@ The server implements comprehensive coverage of the Fakturoid API:
 - **Payment Processing** - Track and manage invoice and expense payments
 - **Document Management** - Upload and manage files through inbox
 - **Advanced Features** - Recurring generators, inventory management, webhooks
+
+#### Lists and pagination
+
+Fakturoid returns 40 items per page. List and search tools (invoices, expenses, subjects, events, todos, inbox files) fetch all pages by default. Pass `page` (first page, 1-based) and `page_count` (number of pages) to limit large results. When a limited result ends on a full page, the tool adds a note that more items may exist and which page to request next.
+
+Events accept `since` and `subject_id`, todos accept `since`. Without a filter, both return the whole account history, which can be thousands of items.
+
+#### Writing data
+
+- Dates such as `paid_on` and `moved_on` are sent as `YYYY-MM-DD` exactly as written. An ISO datetime is accepted and its calendar date is kept without time zone conversion.
+- `fakturoid_update_expense` adds a line when it has no `id` and updates or deletes (`_destroy`) a line that has one. A line without `id` must include `name` and `unit_price` (or `sku` / `inventory_item_id`), so a forgotten `id` is rejected instead of silently duplicating the line.
+- Attachments on create and update tools accept `file_ref` (from the `/upload` page), `source_url`, `file_path` (local server only) or `data_url`. Without a filename, Fakturoid names the file from its MIME type.
+
+#### Errors and rate limits
+
+- Errors include the HTTP status and, for validation errors (422), the affected fields, e.g. `HTTP 422: name: je povinná položka`.
+- Rate limited requests (429) are retried after the reset announced by the API, within a 65 s budget. When the reset is longer, the tool fails right away with `rate limit resets in N s`. `503` responses are retried with backoff for read requests only.
 
 ### Resources (Contextual Data)
 
@@ -274,6 +291,7 @@ MCP Server
 - **Multiple Transport Options**: Supports STDIO, SSE (deprecated), and HTTP transport modes for maximum flexibility
 - **Session Management**: HTTP transport includes session management for stateless clients
 - **Backwards Compatibility**: Maintains support for legacy SSE transport while encouraging migration to HTTP transport
+- **STDIO Lifecycle**: In STDIO mode the process exits when the client closes stdin, so no orphaned server processes are left behind
 
 ## Implementing Custom Authentication Strategies
 
